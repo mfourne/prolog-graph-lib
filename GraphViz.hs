@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings, FlexibleContexts #-}
 module GraphViz where
 
 import Control.Applicative ((<$>), Applicative(..), Alternative(..))
@@ -13,15 +13,16 @@ import qualified Data.Graph.Inductive as Graph
 -- import Data.HashTable (hashString)
 
 import Data.GraphViz (runGraphvizCommand, runGraphvizCanvas', GraphvizCanvas(Xlib), graphElemsToDot, GraphvizOutput(..), toLabel, nonClusteredParams, GraphvizParams(..), GlobalAttributes(GraphAttrs), GraphvizCommand(Dot))
-import Data.GraphViz.Attributes.Colors (Color(X11Color), X11Color(..))
+import Data.GraphViz.Attributes.Colors (Color(X11Color), WeightedColor(..))
+import Data.GraphViz.Attributes.Colors.X11 (X11Color(..))
 import Data.GraphViz.Attributes.HTML
-import Data.GraphViz.Attributes.Complete (Attribute(Ordering,Label,Shape,Color,Width,Regular), Shape(BoxShape), Label(HtmlLabel), HtmlLabel(HtmlText))
+import Data.GraphViz.Attributes.Complete (Attribute(Ordering,Label,Shape,Color,Width,Regular), Shape(BoxShape), Label(HtmlLabel), Order(OutEdges))
 
 import qualified Data.Text.Lazy
 
 import Language.Prolog
 
-htmlStr = HtmlStr . Data.Text.Lazy.pack
+htmlStr = Str . Data.Text.Lazy.pack
 
 -- Graphical output of derivation tree
 resolveTree p q = preview =<< execGraphGenT (resolve_ p q)
@@ -38,7 +39,7 @@ toDot attrs g = graphElemsToDot params (labNodes g) (labEdges g)
   where
     params = nonClusteredParams { fmtNode = \ (_,l) -> formatNode l
                                 , fmtEdge = \ (_, _, l) -> formatEdge l
-                                , globalAttributes = [GraphAttrs (Ordering "out" : attrs)] -- child nodes are drawn in edge-order
+                                , globalAttributes = [GraphAttrs (Ordering OutEdges : attrs)] -- child nodes are drawn in edge-order
                                 , isDirected = True
                                 }
 
@@ -62,8 +63,8 @@ labEdges (Gr _ es) = es
 
 
 newtype GraphGenT m a = GraphGenT (StateT Graph m a) deriving (Monad, Functor, MonadFix, MonadPlus, Applicative, MonadError e, MonadState Graph, MonadTrans, Alternative)
-runGraphGenT  (GraphGenT st) = runStateT  st empty
-execGraphGenT (GraphGenT st) = execStateT st empty
+runGraphGenT  (GraphGenT st) = runStateT  st GraphViz.empty
+execGraphGenT (GraphGenT st) = execStateT st GraphViz.empty
 
 
 instance Monad m => MonadGraphGen (GraphGenT m) where
@@ -96,21 +97,21 @@ data CutFlag = WasNotCut | WasCut
 
 
 
-formatNode :: NodeLabel -> [Attribute]
+formatNode :: NodeLabel -> [Data.GraphViz.Attributes.Complete.Attribute]
 formatNode ((_,(_,u',[])), _, WasNotCut) = -- Success
   Shape BoxShape :
   case filterOriginal u' of
     [] -> [ toLabel ("" :: String)
-          , Width 0.2
+          , Data.GraphViz.Attributes.Complete.Width 0.2
           , Regular True
-          , Color [X11Color Green]
+          , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Green) Nothing)]
           ]
     uf -> [ toLabel $ colorize Green $ htmlUnifier uf
-          , Color [X11Color Green]
+          , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Green) Nothing)]
           ]
 formatNode ((_,(_,_,gs')), [], WasNotCut) = -- Failure
     [ toLabel $ colorize Red [htmlGoals gs'] 
-    , Color [X11Color Red]
+    , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Red) Nothing)]
     ]
 formatNode ((_,(_,_,gs')), _, WasNotCut) =
     [ toLabel [htmlGoals gs'] ]
@@ -118,34 +119,34 @@ formatNode ((_,(_,u',[])), _, WasCut) = -- Cut with Succees
   Shape BoxShape :
   case filterOriginal u' of
     [] -> [ toLabel ("" :: String)
-          , Width 0.2
+          , Data.GraphViz.Attributes.Complete.Width 0.2
           , Regular True
-          , Color [X11Color Gray]
+          , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Gray) Nothing)]
           ]
     uf -> [ toLabel $ colorize Gray $ htmlUnifier uf
-          , Color [X11Color Gray]
+          , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Gray) Nothing)]
           ]
 formatNode ((_,(_,_,gs')), _, WasCut) = -- Cut
     [ toLabel $ colorize Gray [htmlGoals gs']
-    , Color [X11Color Gray]
+    , Data.GraphViz.Attributes.Complete.Color [(WC (X11Color Gray) Nothing)]
     ]
 
 
-formatEdge :: EdgeLabel -> [Attribute]
+formatEdge :: EdgeLabel -> [Data.GraphViz.Attributes.Complete.Attribute]
 formatEdge ((_,u ,_),_)  =
-    [ toLabel [HtmlFont [HtmlPointSize 8] $ htmlUnifier $ simplify u] ]
+    [ toLabel [Font [PointSize 8] $ htmlUnifier $ simplify u] ]
 
 simplify = ([] +++)
 
 htmlGoals = htmlStr . intercalate "," . map show
 
 htmlUnifier [] = [htmlStr " "]
-htmlUnifier u  = intersperse (HtmlNewline []) [ htmlStr $ show v ++ " = " ++ show t | (v,t) <- u ]
+htmlUnifier u  = intersperse (Newline []) [ htmlStr $ show v ++ " = " ++ show t | (v,t) <- u ]
 
 modifyLabel node f =
    modify $ relabelNode f node
 
-colorize color label = [HtmlFont [HtmlColor (X11Color color)] label]
+colorize color label = [Font [Data.GraphViz.Attributes.HTML.Color (X11Color color)] label]
 
 hash :: Path -> Int
 -- TODO This is a complicated way to hash a list of integers.
