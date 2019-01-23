@@ -1,5 +1,5 @@
 Name:                prolog-graph-lib
-Version:             0.2.1
+Version:             0.2.1.1
 Synopsis:            Generating images of resolution trees for Prolog queries.
 Description:         This is the library part (See <http://hackage.haskell.org/package/prolog-graph> for the command line tool).
 License:             PublicDomain
