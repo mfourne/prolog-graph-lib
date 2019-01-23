@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, OverloadedStrings #-}
 module GraphViz where
 
-import Control.Applicative ((<$>), Applicative(..))
+import Control.Applicative ((<$>), Applicative(..), Alternative(..))
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Error
@@ -60,7 +60,7 @@ labNodes (Gr ns _) = ns
 labEdges (Gr _ es) = es
 
 
-newtype GraphGenT m a = GraphGenT (StateT Graph m a) deriving (Monad, Functor, MonadFix, MonadPlus, Applicative, MonadError e, MonadState Graph, MonadTrans)
+newtype GraphGenT m a = GraphGenT (StateT Graph m a) deriving (Monad, Functor, MonadFix, MonadPlus, Applicative, MonadError e, MonadState Graph, MonadTrans, Alternative)
 runGraphGenT  (GraphGenT st) = runStateT  st empty
 execGraphGenT (GraphGenT st) = execStateT st empty
 
