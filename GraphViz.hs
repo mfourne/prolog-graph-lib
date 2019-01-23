@@ -7,9 +7,10 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Concurrent (forkIO)
 import Data.List (intercalate, intersperse, nub)
+import Data.Char (ord)
 
 import qualified Data.Graph.Inductive as Graph
-import Data.HashTable (hashString)
+-- import Data.HashTable (hashString)
 
 import Data.GraphViz (runGraphvizCommand, runGraphvizCanvas', GraphvizCanvas(Xlib), graphElemsToDot, GraphvizOutput(..), toLabel, nonClusteredParams, GraphvizParams(..), GlobalAttributes(GraphAttrs), GraphvizCommand(Dot))
 import Data.GraphViz.Attributes.Colors (Color(X11Color), X11Color(..))
@@ -152,3 +153,6 @@ hash :: Path -> Int
 hash = fromEnum . hashString . show
 
 filterOriginal = filter $ \(VariableName n _, _) -> n == 0
+
+hashString = fromIntegral . foldr f 0
+  where f c m = ord c + (m * 128) `rem` 1500007
